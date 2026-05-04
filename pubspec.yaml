@@ -1,0 +1,66 @@
+name: travel_diary
+description: Diario de Viajes con Mapa - Aplicación móvil Flutter
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Backend - Supabase (Auth + DB + Storage)
+  supabase_flutter: ^2.3.0
+
+  # Geolocalización GPS
+  geolocator: ^11.0.0
+  geocoding: ^3.0.0
+
+  flutter_map: ^7.0.2        # ← estas dos
+  latlong2: ^0.9.1 
+
+  # Selección y captura de fotos
+  image_picker: ^1.0.7
+
+  # Gestión de estado reactivo
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.4
+
+  # Navegación declarativa
+  go_router: ^13.2.1
+
+  # Caché local (modo offline)
+  hive_flutter: ^1.1.0
+
+  # Carga y caché de imágenes remotas
+  cached_network_image: ^3.3.1
+
+  # Tipografía Nunito
+  google_fonts: ^6.2.1
+
+  # Compartir contenido
+  share_plus: ^9.0.0
+
+  # Utilidades
+  intl: ^0.19.0
+  uuid: ^4.3.3
+  connectivity_plus: ^6.0.3
+  flutter_svg: ^2.0.9
+  path_provider: ^2.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.9
+  riverpod_generator: ^2.3.9
+  hive_generator: ^2.0.1
+  json_serializable: ^6.7.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
