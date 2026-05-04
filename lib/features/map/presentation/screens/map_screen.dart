@@ -1,6 +1,9 @@
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:ui_web' as ui_web;
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
+
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong2.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -16,10 +19,8 @@ class MapScreen extends ConsumerStatefulWidget {
 }
 
 class _MapScreenState extends ConsumerState<MapScreen> {
-  final MapController _mapController = MapController();
-
-  final LatLng _initialCenter = LatLng(-17.3895, -66.1568);
-  static const double _initialZoom = 5.0;
+  static bool _viewRegistered = false;
+  static const String _viewType = 'leaflet-map';
 
   @override
   void initState() {
@@ -28,8 +29,97 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         ref.read(entradasNotifierProvider.notifier).cargarEntradas());
   }
 
-  void _flyTo(LatLng point) {
-    _mapController.move(point, 13.0);
+  // Genera el HTML completo con Leaflet y los marcadores
+  String _buildMapHtml(List<EntradaViaje> entradas) {
+    // Construir los marcadores JS
+    final markersJs = entradas.asMap().entries.map((entry) {
+      final i = entry.key;
+      final e = entry.value;
+      if (!e.tieneUbicacion) return '';
+      final colors = [
+        'red', 'blue', 'green', 'orange', 'purple',
+        'darkred', 'darkblue', 'darkgreen', 'cadetblue', 'darkpurple'
+      ];
+      final color = colors[i % colors.length];
+      final titulo = e.titulo.replaceAll("'", "\\'");
+      final nota   = e.nota.replaceAll("'", "\\'").replaceAll('\n', ' ');
+      final fecha  = '${e.fechaVisita.day}/${e.fechaVisita.month}/${e.fechaVisita.year}';
+
+      return '''
+        L.marker([${e.latitud}, ${e.longitud}], {
+          icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-$color.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          })
+        }).addTo(map).bindPopup(
+          '<b>${titulo}</b><br/>' +
+          '<small style="color:#666">$fecha</small><br/>' +
+          '${nota.length > 80 ? nota.substring(0, 80) + '...' : nota}'
+        );
+      ''';
+    }).join('\n');
+
+    // Centro del mapa
+    double centerLat = -17.3895;
+    double centerLng = -66.1568;
+    double zoom      = 5;
+
+    if (entradas.isNotEmpty && entradas.first.tieneUbicacion) {
+      centerLat = entradas.first.latitud!;
+      centerLng = entradas.first.longitud!;
+      zoom      = 8;
+    }
+
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; }
+    .leaflet-popup-content b { font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    var map = L.map('map').setView([$centerLat, $centerLng], $zoom);
+
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    $markersJs
+  </script>
+</body>
+</html>
+''';
+  }
+
+  void _registerView(List<EntradaViaje> entradas) {
+    if (_viewRegistered) return;
+    _viewRegistered = true;
+
+    ui_web.platformViewRegistry.registerViewFactory(
+      _viewType,
+      (int viewId) {
+        final iframe = html.IFrameElement()
+          ..style.width  = '100%'
+          ..style.height = '100%'
+          ..style.border = 'none'
+          ..srcdoc = _buildMapHtml(entradas);
+        return iframe;
+      },
+    );
   }
 
   @override
@@ -40,97 +130,19 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         .where((e) => e.tieneUbicacion)
         .toList();
 
+    _registerView(entradas);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis viajes'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.my_location),
-            tooltip: 'Centrar mapa',
-            onPressed: () =>
-                _mapController.move(_initialCenter, _initialZoom),
-          ),
-        ],
       ),
       body: Stack(
         children: [
-          // ── Mapa OpenStreetMap ──────────────────────────────────────
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _initialCenter,
-              initialZoom:   _initialZoom,
-              minZoom: 2.0,
-              maxZoom: 18.0,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.diario_viajes',
-                maxZoom: 18,
-              ),
-              if (!state.isLoading)
-                MarkerLayer(
-                  markers: entradas.asMap().entries.map((entry) {
-                    final i     = entry.key;
-                    final e     = entry.value;
-                    final color =
-                        Colors.primaries[i % Colors.primaries.length];
-                    final point = LatLng(e.latitud!, e.longitud!);
-
-                    return Marker(
-                      point:  point,
-                      width:  140,
-                      height: 50,
-                      child: GestureDetector(
-                        onTap: () {
-                          _flyTo(point);
-                          _showEntryCard(context, e, color);
-                        },
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: color,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black
-                                        .withValues(alpha: 0.25),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                e.titulo,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            CustomPaint(
-                              size: const Size(12, 7),
-                              painter: _ArrowPainter(color: color),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-            ],
-          ),
-
+          // ── Mapa Leaflet via iframe ─────────────────────────────────
           if (state.isLoading)
-            const Center(child: CircularProgressIndicator()),
+            const Center(child: CircularProgressIndicator())
+          else
+            HtmlElementView(viewType: _viewType),
 
           // ── Panel inferior ──────────────────────────────────────────
           Positioned(
@@ -162,37 +174,31 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   ),
                   const SizedBox(height: 10),
                   Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        Text('Lugares registrados',
+                        Text('Lugares en el mapa',
                             style: theme.textTheme.titleMedium),
                         const Spacer(),
                         Text(
-                          '${entradas.length} en el mapa',
+                          '${entradas.length} registrados',
                           style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme
-                                  .colorScheme.onSurfaceVariant),
+                              color: theme.colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 10),
-                  if (state.isLoading)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: CircularProgressIndicator(),
-                    )
-                  else if (entradas.isEmpty)
+
+                  // Lista horizontal de mini-tarjetas
+                  if (entradas.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                          vertical: 20, horizontal: 20),
+                          vertical: 16, horizontal: 20),
                       child: Text(
                         'Aún no tienes lugares. ¡Toca + para agregar el primero!',
                         style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme
-                                .colorScheme.onSurfaceVariant),
+                            color: theme.colorScheme.onSurfaceVariant),
                         textAlign: TextAlign.center,
                       ),
                     )
@@ -200,8 +206,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     SizedBox(
                       height: 90,
                       child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         scrollDirection: Axis.horizontal,
                         itemCount: entradas.length,
                         separatorBuilder: (_, __) =>
@@ -210,12 +215,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                           final e = entradas[i];
                           final color = Colors.primaries[
                               i % Colors.primaries.length];
-                          return _MiniCard(
-                            entry: e,
-                            color: color,
-                            onTap: () => _flyTo(
-                                LatLng(e.latitud!, e.longitud!)),
-                          );
+                          return _MiniCard(entry: e, color: color);
                         },
                       ),
                     ),
@@ -231,9 +231,9 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         onPressed: () async {
           await context.push('${AppRoutes.map}/new-entry');
           if (mounted) {
-            ref
-                .read(entradasNotifierProvider.notifier)
-                .cargarEntradas();
+            _viewRegistered = false; // Fuerza recrear el mapa con nuevos marcadores
+            ref.read(entradasNotifierProvider.notifier).cargarEntradas();
+            setState(() {});
           }
         },
         icon: const Icon(Icons.add_location_alt_outlined),
@@ -241,116 +241,27 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ),
     );
   }
-
-  void _showEntryCard(
-      BuildContext context, EntradaViaje entry, Color color) {
-    final theme = Theme.of(context);
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (entry.fotoPrincipal != null) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  entry.fotoPrincipal!.url,
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    height: 160,
-                    color: color.withValues(alpha: 0.15),
-                    child: Icon(Icons.image,
-                        size: 56,
-                        color: color.withValues(alpha: 0.4)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            Row(
-              children: [
-                Icon(Icons.location_on, color: color),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: Text(entry.titulo,
-                        style: theme.textTheme.titleLarge)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${entry.latitud!.toStringAsFixed(5)}°, '
-              '${entry.longitud!.toStringAsFixed(5)}°',
-              style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant),
-            ),
-            if (entry.nota.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(entry.nota,
-                  style: theme.textTheme.bodyMedium,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis),
-            ],
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cerrar'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      context.push(
-                          '${AppRoutes.gallery}/${entry.id}');
-                    },
-                    child: const Text('Ver detalle'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
+// ── Mini tarjeta ────────────────────────────────────────────────────
 class _MiniCard extends StatelessWidget {
   final EntradaViaje entry;
   final Color color;
-  final VoidCallback onTap;
 
-  const _MiniCard({
-    required this.entry,
-    required this.color,
-    required this.onTap,
-  });
+  const _MiniCard({required this.entry, required this.color});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => context.push('${AppRoutes.gallery}/${entry.id}'),
       child: Container(
         width: 190,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(12),
-          border:
-              Border.all(color: theme.colorScheme.outlineVariant),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,22 +295,4 @@ class _MiniCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ArrowPainter extends CustomPainter {
-  final Color color;
-  _ArrowPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width / 2, size.height)
-      ..lineTo(size.width, 0)
-      ..close();
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
 }

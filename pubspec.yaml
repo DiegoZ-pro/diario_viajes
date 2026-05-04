@@ -17,9 +17,6 @@ dependencies:
   geolocator: ^11.0.0
   geocoding: ^3.0.0
 
-  flutter_map: ^7.0.2        # ← estas dos
-  latlong2: ^0.9.1 
-
   # Selección y captura de fotos
   image_picker: ^1.0.7
 
