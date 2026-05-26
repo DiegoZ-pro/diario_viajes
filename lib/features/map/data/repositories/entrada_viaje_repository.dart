@@ -11,7 +11,7 @@ class EntradaViajeRepository {
   EntradaViajeRepository({SupabaseClient? client})
       : _client = client ?? supabase;
 
-  // ── Obtener todas las entradas del usuario con sus fotos ───────────
+  // obtener todas las entradas del usuario con sus fotos
   Future<List<EntradaViaje>> obtenerEntradas() async {
     final response = await _client
         .from('entradas_viaje')
@@ -23,7 +23,7 @@ class EntradaViajeRepository {
         .toList();
   }
 
-  // ── Obtener una entrada por ID ────────────────────────────────────
+  // obtener una entrada por ID
   Future<EntradaViaje?> obtenerEntradaPorId(String id) async {
     final response = await _client
         .from('entradas_viaje')
@@ -35,7 +35,7 @@ class EntradaViajeRepository {
     return EntradaViaje.fromJson(response);
   }
 
-  // ── Crear nueva entrada ───────────────────────────────────────────
+  // nueva entrada
   Future<EntradaViaje> crearEntrada({
     required String titulo,
     required String nota,
@@ -63,7 +63,7 @@ class EntradaViajeRepository {
     return EntradaViaje.fromJson(response);
   }
 
-  // ── Actualizar entrada existente ──────────────────────────────────
+  // actualizar entrada existente
   Future<EntradaViaje> actualizarEntrada(EntradaViaje entrada) async {
     final response = await _client
         .from('entradas_viaje')
@@ -75,13 +75,12 @@ class EntradaViajeRepository {
     return EntradaViaje.fromJson(response);
   }
 
-  // ── Eliminar entrada ──────────────────────────────────────────────
-  // Las fotos se eliminan en cascada por la FK en la BD
+  // eliminar entrada y fotos en cascada
   Future<void> eliminarEntrada(String id) async {
     await _client.from('entradas_viaje').delete().eq('id', id);
   }
 
-  // ── Buscar entradas por título o ubicación ────────────────────────
+  // buscar entrada por titulo
   Future<List<EntradaViaje>> buscarEntradas(String query) async {
     final response = await _client
         .from('entradas_viaje')
@@ -94,12 +93,12 @@ class EntradaViajeRepository {
         .toList();
   }
 
-  // ── Subir foto a Storage y registrarla en la tabla fotos ──────────
+  // subir fotos a storage y registrar en tabla fotos
   Future<FotoModel> subirFoto({
     required String entradaId,
     required String rutaLocal,
     required Uint8List bytes,
-    required String extension, // jpg, png, etc.
+    required String extension,
     bool esPrincipal = false,
     int orden = 0,
   }) async {
@@ -107,7 +106,7 @@ class EntradaViajeRepository {
     final fileName = '${DateTime.now().millisecondsSinceEpoch}.$extension';
     final storagePath = '$userId/$entradaId/$fileName';
 
-    // 1. Subir al bucket de Storage
+    // subir al bucket de Storage
     await _client.storage.from('fotos_viaje').uploadBinary(
           storagePath,
           bytes,
@@ -117,10 +116,10 @@ class EntradaViajeRepository {
           ),
         );
 
-    // 2. Obtener URL pública
+    // obtener URL pública
     final url = _client.storage.from('fotos_viaje').getPublicUrl(storagePath);
 
-    // 3. Registrar en la tabla fotos
+    // registrar en la tabla fotos
     final response = await _client
         .from('fotos')
         .insert({
@@ -136,12 +135,12 @@ class EntradaViajeRepository {
     return FotoModel.fromJson(response);
   }
 
-  // ── Eliminar foto de Storage y de la tabla ────────────────────────
+  // eliminar foto de storage y tabla
   Future<void> eliminarFoto(FotoModel foto) async {
-    // 1. Eliminar del Storage
+    // eliminar del Storage
     await _client.storage.from('fotos_viaje').remove([foto.storagePath]);
 
-    // 2. Eliminar de la tabla
+    // eliminar de la tabla
     await _client.from('fotos').delete().eq('id', foto.id);
   }
 }

@@ -6,9 +6,7 @@ import '../../../../core/router/app_router.dart';
 import '../../../map/application/entradas_provider.dart';
 import '../../../map/data/models/entrada_viaje_model.dart';
 
-// ════════════════════════════════════════════════════════════════════
-// GALLERY SCREEN
-// ════════════════════════════════════════════════════════════════════
+// galeria pantalla
 class GalleryScreen extends ConsumerStatefulWidget {
   const GalleryScreen({super.key});
 
@@ -50,7 +48,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
       ),
       body: Column(
         children: [
-          // ── Búsqueda ────────────────────────────────────────────────
+          // busqueda
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: TextField(
@@ -82,7 +80,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
             ),
           ),
 
-          // ── Lista ───────────────────────────────────────────────────
+          // lista
           Expanded(
             child: state.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -133,7 +131,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
   }
 }
 
-// ── Tarjeta de entrada ────────────────────────────────────────────────
+// tarjetita de entrada
 class _EntryCard extends StatelessWidget {
   final EntradaViaje entry;
   const _EntryCard({required this.entry});
@@ -241,9 +239,8 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════
-// ENTRY DETAIL SCREEN
-// ════════════════════════════════════════════════════════════════════
+// detalle pantalla
+
 class EntryDetailScreen extends ConsumerWidget {
   final String entryId;
   const EntryDetailScreen({super.key, required this.entryId});

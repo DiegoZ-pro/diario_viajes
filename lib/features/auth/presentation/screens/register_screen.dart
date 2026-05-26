@@ -147,8 +147,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Confirma tu contraseña';
-                    if (v != _passwordController.text)
+                    if (v != _passwordController.text) {
                       return 'Las contraseñas no coinciden';
+                    }
                     return null;
                   },
                 ),

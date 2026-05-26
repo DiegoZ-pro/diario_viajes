@@ -17,10 +17,10 @@ Future<void> main() async {
   );
 
   runApp(
-    // ProviderScope es el contenedor raíz de Riverpod
+    // providerScope es el contenedor raíz de riverpod
     const ProviderScope(child: TravelDiaryApp()),
   );
 }
 
-// Atajo global para acceder al cliente Supabase desde cualquier lugar
+// atajo para acceder a supabase en cualquier lugar
 final supabase = Supabase.instance.client;

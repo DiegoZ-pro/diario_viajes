@@ -15,12 +15,12 @@ class TravelDiaryApp extends ConsumerWidget {
       title: 'Diario de Viajes',
       debugShowCheckedModeBanner: false,
 
-      // Tema claro y oscuro automático según el sistema
+      // tema automatico
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
 
-      // Router declarativo con go_router
+      // router declarativo con go_router
       routerConfig: router,
     );
   }

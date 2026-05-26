@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Necesitamos tu ubicación para registrar el lugar de tu viaje en el mapa.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Necesitamos tu ubicación para registrar el lugar de tu viaje en el mapa.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Necesitamos tu ubicación para registrar el lugar de tu viaje en el mapa.</string>
 </dict>
 </plist>

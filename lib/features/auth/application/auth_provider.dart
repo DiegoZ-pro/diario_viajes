@@ -22,9 +22,8 @@ class AuthState {
         user = null,
         errorMessage = null;
 
-  const AuthState.authenticated(User user)
+  const AuthState.authenticated(User this.user)
       : status = AuthStatus.authenticated,
-        user = user,
         errorMessage = null;
 
   const AuthState.unauthenticated({String? error})
@@ -79,7 +78,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } on AuthException catch (e) {
       state = AuthState.unauthenticated(error: _traducirError(e.message));
     } catch (e) {
-      state = AuthState.unauthenticated(
+      state = const AuthState.unauthenticated(
           error: 'Error inesperado. Intenta de nuevo.');
     }
   }
@@ -98,7 +97,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } on AuthException catch (e) {
       state = AuthState.unauthenticated(error: _traducirError(e.message));
     } catch (e) {
-      state = AuthState.unauthenticated(
+      state = const AuthState.unauthenticated(
           error: 'Error inesperado. Intenta de nuevo.');
     }
   }
@@ -114,7 +113,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } on AuthException catch (e) {
       state = AuthState.unauthenticated(error: _traducirError(e.message));
     } catch (e) {
-      state = AuthState.unauthenticated(
+      state = const AuthState.unauthenticated(
           error: 'Error con Google. Intenta de nuevo.');
     }
   }

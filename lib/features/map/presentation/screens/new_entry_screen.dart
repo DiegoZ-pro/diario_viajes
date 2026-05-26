@@ -6,6 +6,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+// importación condicional del selector de ubicación
+import 'location_picker_stub.dart'
+    if (dart.library.html) 'location_picker_web.dart';
+
 import '../../application/entradas_provider.dart';
 
 class NewEntryScreen extends ConsumerStatefulWidget {
@@ -25,7 +29,6 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
   bool _detectandoGPS = false;
   bool _guardando = false;
 
-  // Lista de fotos: cada elemento tiene bytes + extensión
   final List<({Uint8List bytes, String extension, String nombre})> _fotos = [];
 
   @override
@@ -35,11 +38,22 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
     super.dispose();
   }
 
-  // ── GPS ────────────────────────────────────────────────────────────
+  // gps
   Future<void> _detectarUbicacion() async {
     setState(() => _detectandoGPS = true);
     try {
-      // Verificar permisos
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content:
+                    Text('Activa el servicio de ubicación en tu dispositivo.')),
+          );
+        }
+        return;
+      }
+
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -49,7 +63,7 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                  'Permisos de ubicación denegados. Actívalos en Ajustes.'),
+                  'Permisos de ubicación denegados permanentemente. Actívalos en Ajustes.'),
             ),
           );
         }
@@ -67,7 +81,7 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo obtener la ubicación.')),
+          SnackBar(content: Text('No se pudo obtener la ubicación: $e')),
         );
       }
     } finally {
@@ -75,7 +89,18 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
     }
   }
 
-  // ── Seleccionar foto ───────────────────────────────────────────────
+  // selector de mapa
+  Future<void> _abrirSelectorMapa() async {
+    final result = await showLocationPicker(context);
+    if (result != null && mounted) {
+      setState(() {
+        _latitud = result['lat'];
+        _longitud = result['lng'];
+      });
+    }
+  }
+
+  // fotos
   Future<void> _agregarFoto(ImageSource source) async {
     try {
       final picker = ImagePicker();
@@ -86,13 +111,10 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
         imageQuality: 80,
       );
       if (picked == null) return;
-
       final bytes = await picked.readAsBytes();
       final extension = picked.name.split('.').last.toLowerCase();
-      final nombre = picked.name;
-
-      setState(() =>
-          _fotos.add((bytes: bytes, extension: extension, nombre: nombre)));
+      setState(() => _fotos
+          .add((bytes: bytes, extension: extension, nombre: picked.name)));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -133,13 +155,12 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
     );
   }
 
-  // ── Guardar entrada ────────────────────────────────────────────────
+  // guardar
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
     if (_latitud == null || _longitud == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Por favor detecta o ingresa la ubicación.')),
+        const SnackBar(content: Text('Por favor selecciona una ubicación.')),
       );
       return;
     }
@@ -198,8 +219,8 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // ── Paso 1: Título ────────────────────────────────────────
-            _StepLabel(number: '1', label: 'Nombre del lugar'),
+            // titulo
+            const _StepLabel(number: '1', label: 'Nombre del lugar'),
             const SizedBox(height: 10),
             TextFormField(
               controller: _titleController,
@@ -215,15 +236,14 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
 
             const SizedBox(height: 28),
 
-            // ── Paso 2: Fotos ─────────────────────────────────────────
-            _StepLabel(number: '2', label: 'Fotografías'),
+            // fotos
+            const _StepLabel(number: '2', label: 'Fotografías'),
             const SizedBox(height: 10),
             SizedBox(
               height: 110,
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
-                  // Botón agregar
                   GestureDetector(
                     onTap: _mostrarOpcionesFoto,
                     child: Container(
@@ -248,24 +268,18 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  // Fotos seleccionadas
-                  ..._fotos.asMap().entries.map((entry) {
-                    final i = entry.key;
-                    final foto = entry.value;
+                  ..._fotos.asMap().entries.map((e) {
+                    final i = e.key;
+                    final foto = e.value;
                     return Padding(
                       padding: const EdgeInsets.only(right: 10),
                       child: Stack(
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.memory(
-                              foto.bytes,
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                            ),
+                            child: Image.memory(foto.bytes,
+                                width: 100, height: 100, fit: BoxFit.cover),
                           ),
-                          // Badge "portada" en la primera foto
                           if (i == 0)
                             Positioned(
                               bottom: 4,
@@ -277,14 +291,13 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                                   color: theme.colorScheme.primary,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: Text('Portada',
-                                    style: const TextStyle(
+                                child: const Text('Portada',
+                                    style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w700)),
                               ),
                             ),
-                          // Botón eliminar
                           Positioned(
                             top: 4,
                             right: 4,
@@ -311,8 +324,8 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
 
             const SizedBox(height: 28),
 
-            // ── Paso 3: Nota ──────────────────────────────────────────
-            _StepLabel(number: '3', label: 'Nota personal'),
+            // nota
+            const _StepLabel(number: '3', label: 'Nota personal'),
             const SizedBox(height: 10),
             TextFormField(
               controller: _noteController,
@@ -329,8 +342,8 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
 
             const SizedBox(height: 28),
 
-            // ── Paso 4: Ubicación ─────────────────────────────────────
-            _StepLabel(number: '4', label: 'Ubicación'),
+            // ubicación
+            const _StepLabel(number: '4', label: 'Ubicación'),
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(16),
@@ -341,9 +354,9 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
               ),
               child: Column(
                 children: [
-                  // Indicador de ubicación
+                  // Indicador de ubicación actual
                   Container(
-                    height: 120,
+                    height: 70,
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest,
@@ -351,61 +364,83 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                     ),
                     child: Center(
                       child: _detectandoGPS
-                          ? Column(
+                          ? const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const CircularProgressIndicator(),
-                                const SizedBox(height: 8),
-                                Text('Detectando...',
-                                    style: theme.textTheme.bodySmall),
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                                SizedBox(width: 10),
+                                Text('Obteniendo ubicación...'),
                               ],
                             )
                           : _latitud != null
-                              ? Column(
+                              ? Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(Icons.location_on,
-                                        size: 36,
-                                        color: theme.colorScheme.primary),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${_latitud!.toStringAsFixed(5)}°, ${_longitud!.toStringAsFixed(5)}°',
-                                      style: theme.textTheme.labelMedium,
+                                        color: theme.colorScheme.primary,
+                                        size: 20),
+                                    const SizedBox(width: 6),
+                                    Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${_latitud!.toStringAsFixed(5)}°',
+                                          style: theme.textTheme.labelMedium,
+                                        ),
+                                        Text(
+                                          '${_longitud!.toStringAsFixed(5)}°',
+                                          style: theme.textTheme.labelMedium,
+                                        ),
+                                      ],
                                     ),
-                                    Text('Ubicación detectada',
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                                color:
-                                                    theme.colorScheme.primary)),
+                                    const SizedBox(width: 10),
+                                    const Icon(Icons.check_circle,
+                                        color: Colors.green, size: 18),
                                   ],
                                 )
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.location_searching,
-                                        size: 36,
-                                        color:
-                                            theme.colorScheme.onSurfaceVariant),
-                                    const SizedBox(height: 4),
-                                    Text('Sin ubicación',
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                                color: theme.colorScheme
-                                                    .onSurfaceVariant)),
-                                  ],
+                              : Text(
+                                  'Sin ubicación seleccionada',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant),
                                 ),
                     ),
                   ),
+
                   const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.my_location, size: 18),
-                      label: const Text('Usar mi ubicación GPS'),
-                      onPressed: _detectandoGPS ? null : _detectarUbicacion,
-                      style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 44)),
-                    ),
+
+                  // Botones de ubicación
+                  Row(
+                    children: [
+                      // GPS
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.my_location, size: 18),
+                          label: const Text('Usar GPS'),
+                          onPressed: _detectandoGPS ? null : _detectarUbicacion,
+                          style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 46)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Seleccionar en mapa
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.map_outlined, size: 18),
+                          label: const Text('En el mapa'),
+                          onPressed: _abrirSelectorMapa,
+                          style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(0, 46)),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -413,7 +448,7 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
 
             const SizedBox(height: 40),
 
-            // ── Botón guardar ─────────────────────────────────────────
+            // boton guardar
             ElevatedButton.icon(
               onPressed: _guardando ? null : _guardar,
               icon: const Icon(Icons.save_outlined),

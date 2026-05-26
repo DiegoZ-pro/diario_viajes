@@ -55,19 +55,19 @@ class WelcomeScreen extends StatelessWidget {
               const SizedBox(height: 48),
 
               // ── Características destacadas ──────────────────────────
-              _FeatureTile(
+              const _FeatureTile(
                 icon: Icons.map_outlined,
                 title: 'Mapa interactivo',
                 subtitle: 'Ve todos tus lugares visitados de un vistazo',
               ),
               const SizedBox(height: 16),
-              _FeatureTile(
+              const _FeatureTile(
                 icon: Icons.photo_camera_outlined,
                 title: 'Fotos y notas',
                 subtitle: 'Captura el momento con fotos y descripciones',
               ),
               const SizedBox(height: 16),
-              _FeatureTile(
+              const _FeatureTile(
                 icon: Icons.cloud_done_outlined,
                 title: 'Sincronizado en la nube',
                 subtitle: 'Tus recuerdos seguros y accesibles siempre',
