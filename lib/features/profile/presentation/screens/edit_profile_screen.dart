@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -44,7 +45,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           _currentAvatarUrl = data['avatar_url'] as String?;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error cargando perfil: $e');
+    }
   }
 
   @override
@@ -97,7 +100,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (picked == null) return;
       final bytes = await picked.readAsBytes();
       setState(() => _newAvatarBytes = bytes);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error seleccionando imagen: $e');
+    }
   }
 
   // guardar cambios
@@ -109,7 +114,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       final user = supabase.auth.currentUser!;
       String? avatarUrl = _currentAvatarUrl;
 
-      // subir nuevo avatar si se subio xd
       if (_newAvatarBytes != null) {
         final path = '${user.id}/avatar.jpg';
         await supabase.storage.from('fotos_viaje').uploadBinary(
@@ -138,7 +142,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Perfil actualizado correctamente')),
         );
-        Navigator.pop(context);
+        context.pop();
       }
     } on StorageException catch (e) {
       if (mounted) {

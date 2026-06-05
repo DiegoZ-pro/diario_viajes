@@ -11,7 +11,6 @@ class EntradaViaje {
   final bool esPublica;
   final DateTime createdAt;
   final DateTime updatedAt;
-  // Fotos relacionadas (cargadas con JOIN)
   final List<FotoModel> fotos;
 
   const EntradaViaje({
@@ -28,7 +27,6 @@ class EntradaViaje {
     this.fotos = const [],
   });
 
-  // Foto de portada (la marcada como principal, o la primera)
   FotoModel? get fotoPrincipal {
     if (fotos.isEmpty) return null;
     return fotos.firstWhere(
@@ -37,10 +35,8 @@ class EntradaViaje {
     );
   }
 
-  // Tiene coordenadas válidas para mostrar en el mapa
   bool get tieneUbicacion => latitud != null && longitud != null;
 
-  // ── Serialización desde JSON (respuesta de Supabase) ───────────────
   factory EntradaViaje.fromJson(Map<String, dynamic> json) {
     final fotosJson = json['fotos'] as List<dynamic>? ?? [];
     return EntradaViaje(
@@ -60,7 +56,6 @@ class EntradaViaje {
     );
   }
 
-  // ── Serialización a JSON (para insertar/actualizar en Supabase) ────
   Map<String, dynamic> toJson() => {
         'user_id': userId,
         'titulo': titulo,
@@ -71,7 +66,6 @@ class EntradaViaje {
         'es_publica': esPublica,
       };
 
-  // ── CopyWith para actualizaciones parciales ────────────────────────
   EntradaViaje copyWith({
     String? titulo,
     String? nota,

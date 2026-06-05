@@ -2,17 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // ── Paleta de colores ──────────────────────────────────────────────
-  // Primario: Azul marino (exploración, confianza)
   static const Color _primaryColor = Color(0xFF1565C0);
-  // Secundario: Tierra/marrón cálido (naturaleza, aventura)
   static const Color _secondaryColor = Color(0xFF8D6E63);
-  // Terciario: Verde teal (frescura, mapas)
   static const Color _tertiaryColor = Color(0xFF00796B);
-  // Error
   static const Color _errorColor = Color(0xFFB00020);
 
-  // ── Texto ──────────────────────────────────────────────────────────
   static TextTheme _buildTextTheme(Brightness brightness) {
     final baseColor = brightness == Brightness.light
         ? const Color(0xFF1C1B1F)
@@ -52,7 +46,6 @@ class AppTheme {
     );
   }
 
-  // ── Tema Claro ─────────────────────────────────────────────────────
   static ThemeData get lightTheme {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: _primaryColor,
@@ -66,8 +59,6 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       textTheme: _buildTextTheme(Brightness.light),
-
-      // AppBar sin elevación, fondo transparente por defecto
       appBarTheme: AppBarTheme(
         centerTitle: false,
         elevation: 0,
@@ -80,8 +71,6 @@ class AppTheme {
           color: colorScheme.onSurface,
         ),
       ),
-
-      // Cards con esquinas redondeadas
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -90,8 +79,6 @@ class AppTheme {
         ),
         clipBehavior: Clip.antiAlias,
       ),
-
-      // Botones primarios
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           minimumSize: const Size(double.infinity, 52),
@@ -104,8 +91,6 @@ class AppTheme {
           ),
         ),
       ),
-
-      // Botones de texto
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           textStyle: GoogleFonts.nunito(
@@ -114,8 +99,6 @@ class AppTheme {
           ),
         ),
       ),
-
-      // Campos de texto
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
@@ -140,8 +123,6 @@ class AppTheme {
         labelStyle: GoogleFonts.nunito(fontSize: 14),
         hintStyle: GoogleFonts.nunito(fontSize: 14, color: colorScheme.outline),
       ),
-
-      // FAB (botón flotante)
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
@@ -149,8 +130,6 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
-
-      // Bottom Navigation Bar
       navigationBarTheme: NavigationBarThemeData(
         elevation: 0,
         backgroundColor: colorScheme.surface,
@@ -159,8 +138,6 @@ class AppTheme {
           GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
-
-      // SnackBar
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
@@ -170,7 +147,6 @@ class AppTheme {
     );
   }
 
-  // ── Tema Oscuro ────────────────────────────────────────────────────
   static ThemeData get darkTheme {
     final colorScheme = ColorScheme.fromSeed(
       seedColor: _primaryColor,

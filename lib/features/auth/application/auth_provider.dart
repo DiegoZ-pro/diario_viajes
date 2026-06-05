@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../main.dart';
 
-// ── Estado de autenticación ───────────────────────────────────────────
 enum AuthStatus { loading, authenticated, unauthenticated }
 
 class AuthState {
@@ -35,14 +34,12 @@ class AuthState {
   bool get isAuthenticated => status == AuthStatus.authenticated;
 }
 
-// ── Notifier ──────────────────────────────────────────────────────────
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState.loading()) {
     _init();
   }
 
   void _init() {
-    // Sesión actual al arrancar la app
     final session = supabase.auth.currentSession;
     if (session != null) {
       state = AuthState.authenticated(session.user);
@@ -50,7 +47,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = const AuthState.unauthenticated();
     }
 
-    // Escuchar cambios de sesión en tiempo real
     supabase.auth.onAuthStateChange.listen((data) {
       final user = data.session?.user;
       if (user != null) {
@@ -61,7 +57,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     });
   }
 
-  // ── Registro con email y contraseña ──────────────────────────────
   Future<void> signUp({
     required String nombre,
     required String email,
@@ -74,7 +69,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
         data: {'full_name': nombre},
       );
-      // El trigger handle_new_user() crea el perfil automáticamente
     } on AuthException catch (e) {
       state = AuthState.unauthenticated(error: _traducirError(e.message));
     } catch (e) {
@@ -83,7 +77,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // ── Inicio de sesión con email y contraseña ───────────────────────
   Future<void> signIn({
     required String email,
     required String password,
@@ -102,7 +95,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // ── Inicio de sesión con Google ───────────────────────────────────
   Future<void> signInWithGoogle() async {
     state = const AuthState.loading();
     try {
@@ -118,13 +110,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // ── Cerrar sesión ────────────────────────────────────────────────
   Future<void> signOut() async {
     await supabase.auth.signOut();
     state = const AuthState.unauthenticated();
   }
 
-  // ── Traducir errores de Supabase al español ───────────────────────
   String _traducirError(String message) {
     final msg = message.toLowerCase();
     if (msg.contains('invalid login credentials')) {
@@ -147,16 +137,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-// ── Providers ─────────────────────────────────────────────────────────
 final authNotifierProvider =
     StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
 
-// Acceso directo al usuario actual
 final currentUserProvider = Provider<User?>((ref) {
   return ref.watch(authNotifierProvider).user;
-});
-
-// ¿Está autenticado?
-final isAuthenticatedProvider = Provider<bool>((ref) {
-  return ref.watch(authNotifierProvider).isAuthenticated;
 });

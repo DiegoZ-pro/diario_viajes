@@ -5,8 +5,6 @@ import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 
-// Muestra un mapa interactivo para elegir ubicación
-// Retorna {lat, lng} o null si se cancela
 Future<Map<String, double>?> showLocationPicker(BuildContext context) {
   return showModalBottomSheet<Map<String, double>?>(
     context: context,
@@ -51,7 +49,6 @@ class _WebLocationPickerState extends State<_WebLocationPicker> {
       },
     );
 
-    // Escuchar coordenadas enviadas desde el iframe
     html.window.onMessage.listen((event) {
       final data = event.data?.toString() ?? '';
       if (data.startsWith('loc:')) {
@@ -99,14 +96,12 @@ class _WebLocationPickerState extends State<_WebLocationPicker> {
 
     var marker = null;
 
-    // Auto-zoom a ubicación del usuario
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(function(pos) {
         map.setView([pos.coords.latitude, pos.coords.longitude], 14);
       });
     }
 
-    // Click en el mapa → colocar marcador y enviar coordenadas
     map.on('click', function(e) {
       var lat = e.latlng.lat.toFixed(7);
       var lng = e.latlng.lng.toFixed(7);
@@ -116,8 +111,6 @@ class _WebLocationPickerState extends State<_WebLocationPicker> {
         .bindPopup('Ubicación seleccionada').openPopup();
 
       document.getElementById('hint').style.display = 'none';
-
-      // Enviar coordenadas al Flutter parent
       window.parent.postMessage('loc:' + lat + ',' + lng, '*');
     });
   </script>
@@ -131,7 +124,6 @@ class _WebLocationPickerState extends State<_WebLocationPicker> {
       height: MediaQuery.of(context).size.height * 0.75,
       child: Column(
         children: [
-          // Handle
           const SizedBox(height: 12),
           Container(
             width: 36,
@@ -142,8 +134,6 @@ class _WebLocationPickerState extends State<_WebLocationPicker> {
             ),
           ),
           const SizedBox(height: 12),
-
-          // Título
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -158,8 +148,6 @@ class _WebLocationPickerState extends State<_WebLocationPicker> {
               ],
             ),
           ),
-
-          // Mapa
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -169,8 +157,6 @@ class _WebLocationPickerState extends State<_WebLocationPicker> {
               ),
             ),
           ),
-
-          // Coordenadas seleccionadas
           if (_selectedLat != null)
             Padding(
               padding: const EdgeInsets.all(12),
@@ -195,8 +181,6 @@ class _WebLocationPickerState extends State<_WebLocationPicker> {
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
             ),
-
-          // Botón confirmar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: ElevatedButton(

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-// Muestra un mapa interactivo para elegir ubicación
-// Retorna {lat, lng} o null si se cancela
 Future<Map<String, double>?> showLocationPicker(BuildContext context) {
   return showModalBottomSheet<Map<String, double>?>(
     context: context,
@@ -93,8 +91,6 @@ class _MobileLocationPickerState extends State<_MobileLocationPicker> {
         .bindPopup('Ubicación seleccionada').openPopup();
 
       document.getElementById('hint').style.display = 'none';
-
-      // Enviar al canal de Flutter (iOS/Android)
       LocationPicker.postMessage(lat + ',' + lng);
     });
   </script>

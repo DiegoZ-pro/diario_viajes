@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  fl_chart: ^0.69.0
+
   # Backend - Supabase (Auth + DB + Storage)
   supabase_flutter: ^2.3.0
 

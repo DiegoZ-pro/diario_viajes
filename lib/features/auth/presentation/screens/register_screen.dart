@@ -76,8 +76,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 40),
-
-                // ── Nombre ────────────────────────────────────────────
                 TextFormField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
@@ -90,8 +88,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       : null,
                 ),
                 const SizedBox(height: 16),
-
-                // ── Email ─────────────────────────────────────────────
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -106,8 +102,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-
-                // ── Contraseña ────────────────────────────────────────
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -129,8 +123,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-
-                // ── Confirmar contraseña ──────────────────────────────
                 TextFormField(
                   controller: _confirmController,
                   obscureText: _obscureConfirm,
@@ -154,8 +146,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: 32),
-
-                // ── Botón registrarse ─────────────────────────────────
                 ElevatedButton(
                   onPressed: authState.isLoading ? null : _submit,
                   child: authState.isLoading
@@ -167,7 +157,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       : const Text('Crear cuenta'),
                 ),
                 const SizedBox(height: 24),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

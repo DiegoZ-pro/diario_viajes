@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
@@ -8,10 +10,16 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/map/presentation/screens/map_screen.dart';
 import '../../features/map/presentation/screens/new_entry_screen.dart';
+import '../../features/map/presentation/screens/edit_entry_screen.dart';
+import '../../features/map/presentation/screens/search_screen.dart';
+import '../../features/map/data/models/entrada_viaje_model.dart';
 import '../../features/gallery/presentation/screens/gallery_screens.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/screens/edit_profile_screen.dart';
+import '../../features/profile/presentation/screens/change_password_screen.dart';
+import '../../features/profile/presentation/screens/stats_screen.dart';
+import '../../features/settings/presentation/screens/settings_screen.dart';
 
-// ── Nombres de rutas ──────────────────────────────────────────────────
 class AppRoutes {
   static const welcome = '/';
   static const login = '/login';
@@ -19,44 +27,37 @@ class AppRoutes {
   static const map = '/map';
   static const gallery = '/gallery';
   static const profile = '/profile';
+  static const search = '/search';
+  static const settings = '/settings';
+  static const profileEdit = '/profile/edit';
+  static const profileChangePassword = '/profile/change-password';
+  static const profileStats = '/profile/stats';
 }
 
-// ── Provider del router ───────────────────────────────────────────────
 final appRouterProvider = Provider<GoRouter>((ref) {
-  // Escuchar cambios en el estado de autenticación
   final authState = ref.watch(authNotifierProvider);
 
   return GoRouter(
     initialLocation: AppRoutes.welcome,
-    debugLogDiagnostics: true,
     refreshListenable: GoRouterRefreshStream(
       ref.watch(authNotifierProvider.notifier).stream,
     ),
-
-    // ── Redirección basada en sesión real ─────────────────────────
     redirect: (context, state) {
       final isAuthenticated = authState.isAuthenticated;
       final isLoading = authState.isLoading;
       final location = state.matchedLocation;
 
-      // Mientras carga no redirigir
       if (isLoading) return null;
 
       final isAuthRoute = location == AppRoutes.welcome ||
           location == AppRoutes.login ||
           location == AppRoutes.register;
 
-      // Si está autenticado y en pantalla de auth → ir al mapa
       if (isAuthenticated && isAuthRoute) return AppRoutes.map;
-
-      // Si no está autenticado y en ruta protegida → ir a bienvenida
       if (!isAuthenticated && !isAuthRoute) return AppRoutes.welcome;
-
       return null;
     },
-
     routes: [
-      // ── Auth ─────────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.welcome,
         builder: (_, __) => const WelcomeScreen(),
@@ -69,8 +70,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.register,
         builder: (_, __) => const RegisterScreen(),
       ),
-
-      // ── Shell con NavigationBar ───────────────────────────────────
+      GoRoute(
+        path: AppRoutes.search,
+        builder: (_, __) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        builder: (_, __) => const SettingsScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (_, __, shell) => ScaffoldWithNavBar(navigationShell: shell),
         branches: [
@@ -96,6 +103,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   builder: (_, state) => EntryDetailScreen(
                     entryId: state.pathParameters['id']!,
                   ),
+                  routes: [
+                    GoRoute(
+                      path: 'edit',
+                      builder: (_, state) => EditEntryScreen(
+                        entryId: state.pathParameters['id']!,
+                        entry: state.extra as EntradaViaje?,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -104,19 +120,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             GoRoute(
               path: AppRoutes.profile,
               builder: (_, __) => const ProfileScreen(),
+              routes: [
+                GoRoute(
+                  path: 'edit',
+                  builder: (_, __) => const EditProfileScreen(),
+                ),
+                GoRoute(
+                  path: 'change-password',
+                  builder: (_, __) => const ChangePasswordScreen(),
+                ),
+                GoRoute(
+                  path: 'stats',
+                  builder: (_, __) => const StatsScreen(),
+                ),
+              ],
             ),
           ]),
         ],
       ),
     ],
-
     errorBuilder: (_, state) => Scaffold(
       body: Center(child: Text('Página no encontrada: ${state.uri}')),
     ),
   );
 });
 
-// ── Shell widget ──────────────────────────────────────────────────────
 class ScaffoldWithNavBar extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
   const ScaffoldWithNavBar({super.key, required this.navigationShell});
@@ -150,9 +178,16 @@ class ScaffoldWithNavBar extends StatelessWidget {
   }
 }
 
-// ── Helper para que GoRouter escuche streams de Riverpod ─────────────
 class GoRouterRefreshStream extends ChangeNotifier {
+  late final StreamSubscription<dynamic> _subscription;
+
   GoRouterRefreshStream(Stream<dynamic> stream) {
-    stream.listen((_) => notifyListeners());
+    _subscription = stream.listen((_) => notifyListeners());
+  }
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
   }
 }

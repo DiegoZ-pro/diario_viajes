@@ -42,7 +42,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final theme = Theme.of(context);
     final authState = ref.watch(authNotifierProvider);
 
-    // Mostrar error si existe
     ref.listen(authNotifierProvider, (prev, next) {
       if (next.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -76,8 +75,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 40),
-
-                // ── Email ─────────────────────────────────────────────
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -92,8 +89,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   },
                 ),
                 const SizedBox(height: 16),
-
-                // ── Contraseña ────────────────────────────────────────
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -115,7 +110,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   },
                 ),
                 const SizedBox(height: 8),
-
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -124,8 +118,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // ── Botón iniciar sesión ──────────────────────────────
                 ElevatedButton(
                   onPressed: authState.isLoading ? null : _submit,
                   child: authState.isLoading
@@ -137,8 +129,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       : const Text('Iniciar sesión'),
                 ),
                 const SizedBox(height: 24),
-
-                // ── Divisor ───────────────────────────────────────────
                 Row(
                   children: [
                     const Expanded(child: Divider()),
@@ -151,8 +141,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-
-                // ── Botón Google ──────────────────────────────────────
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 52),
@@ -164,7 +152,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onPressed: authState.isLoading ? null : _submitGoogle,
                 ),
                 const SizedBox(height: 32),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

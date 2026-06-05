@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
@@ -8,7 +9,10 @@ import 'app.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await initializeDateFormatting('es', null);
+
   await Hive.initFlutter();
+  await Hive.openBox('settings');
 
   await Supabase.initialize(
     url: 'https://choratrufzpkprgfbylb.supabase.co',
@@ -17,10 +21,8 @@ Future<void> main() async {
   );
 
   runApp(
-    // providerScope es el contenedor raíz de riverpod
     const ProviderScope(child: TravelDiaryApp()),
   );
 }
 
-// atajo para acceder a supabase en cualquier lugar
 final supabase = Supabase.instance.client;

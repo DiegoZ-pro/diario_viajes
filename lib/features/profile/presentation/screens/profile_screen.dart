@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/app_router.dart';
 import '../../../auth/application/auth_provider.dart';
 import '../../../map/application/entradas_provider.dart';
 import '../../../../main.dart';
-import 'edit_profile_screen.dart';
-import 'change_password_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -23,6 +23,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     _loadProfile();
+  }
+
+  Future<void> _navigateToStats() async {
+    await context.push(AppRoutes.profileStats);
   }
 
   Future<void> _loadProfile() async {
@@ -43,7 +47,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _avatarUrl = data['avatar_url'] as String?;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error cargando perfil: $e');
     } finally {
       if (mounted) setState(() => _loadingProfile = false);
     }
@@ -57,19 +62,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _navigateToEdit() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-    );
-    // Recargar perfil al volver
+    await context.push(AppRoutes.profileEdit);
     _loadProfile();
   }
 
   Future<void> _navigateToChangePassword() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-    );
+    await context.push(AppRoutes.profileChangePassword);
   }
 
   void _confirmLogout() {
@@ -236,6 +234,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Text('Cuenta', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
 
+                  _OptionTile(
+                    icon: Icons.settings_outlined,
+                    label: 'Ajustes',
+                    subtitle: 'Tema, cuenta y preferencias',
+                    onTap: () => context.push(AppRoutes.settings),
+                  ),
+                  _OptionTile(
+                    icon: Icons.bar_chart_rounded,
+                    label: 'Mis estadísticas',
+                    subtitle: 'Gráficas y resumen de tus viajes',
+                    onTap: _navigateToStats,
+                  ),
                   _OptionTile(
                     icon: Icons.person_outline,
                     label: 'Editar perfil',

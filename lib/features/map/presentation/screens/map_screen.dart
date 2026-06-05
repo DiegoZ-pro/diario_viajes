@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import 'map_widget_stub.dart' if (dart.library.html) 'map_widget_web.dart';
 
 import '../../../../core/router/app_router.dart';
+import '../../../../core/utils/color_utils.dart';
 import '../../application/entradas_provider.dart';
 import '../../data/models/entrada_viaje_model.dart';
 
@@ -32,16 +34,20 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis viajes'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search_outlined),
+            tooltip: 'Buscar lugares',
+            onPressed: () => context.push(AppRoutes.search),
+          ),
+        ],
       ),
       body: Stack(
         children: [
-          // mapita
           if (state.isLoading)
             const Center(child: CircularProgressIndicator())
           else
             buildMapView(entradas),
-
-          // panel inferior
           Positioned(
             bottom: 0,
             left: 0,
@@ -109,8 +115,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         separatorBuilder: (_, __) => const SizedBox(width: 10),
                         itemBuilder: (_, i) {
                           final e = entradas[i];
-                          final color =
-                              Colors.primaries[i % Colors.primaries.length];
+                          final color = AppColorUtils.forSeed(e.titulo);
                           return _MiniCard(entry: e, color: color);
                         },
                       ),
@@ -177,7 +182,7 @@ class _MiniCard extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              '${entry.fechaVisita.day}/${entry.fechaVisita.month}/${entry.fechaVisita.year}',
+              DateFormat('dd/MM/yyyy').format(entry.fechaVisita),
               style: theme.textTheme.labelSmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),

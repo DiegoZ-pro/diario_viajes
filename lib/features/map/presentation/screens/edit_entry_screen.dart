@@ -11,26 +11,55 @@ import 'location_picker_stub.dart'
     if (dart.library.html) 'location_picker_web.dart';
 
 import '../../application/entradas_provider.dart';
+import '../../data/models/entrada_viaje_model.dart';
+import '../../data/models/foto_model.dart';
 
-class NewEntryScreen extends ConsumerStatefulWidget {
-  const NewEntryScreen({super.key});
+class EditEntryScreen extends ConsumerStatefulWidget {
+  final EntradaViaje? entry;
+  final String entryId;
+
+  const EditEntryScreen({super.key, this.entry, required this.entryId});
 
   @override
-  ConsumerState<NewEntryScreen> createState() => _NewEntryScreenState();
+  ConsumerState<EditEntryScreen> createState() => _EditEntryScreenState();
 }
 
-class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
+class _EditEntryScreenState extends ConsumerState<EditEntryScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _noteController = TextEditingController();
 
+  EntradaViaje? _entry;
   DateTime _fechaVisita = DateTime.now();
   double? _latitud;
   double? _longitud;
   bool _detectandoGPS = false;
   bool _guardando = false;
 
-  final List<({Uint8List bytes, String extension, String nombre})> _fotos = [];
+  final List<FotoModel> _fotosAEliminar = [];
+  final List<({Uint8List bytes, String extension, String nombre})> _fotosNuevas =
+      [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEntry();
+  }
+
+  void _loadEntry() {
+    final entry = widget.entry ??
+        ref
+            .read(entradasProvider)
+            .where((e) => e.id == widget.entryId)
+            .firstOrNull;
+    if (entry == null) return;
+    _entry = entry;
+    _titleController.text = entry.titulo;
+    _noteController.text = entry.nota;
+    _fechaVisita = entry.fechaVisita;
+    _latitud = entry.latitud;
+    _longitud = entry.longitud;
+  }
 
   @override
   void dispose() {
@@ -57,13 +86,11 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content:
-                    Text('Activa el servicio de ubicación en tu dispositivo.')),
+                content: Text('Activa el servicio de ubicación.')),
           );
         }
         return;
       }
-
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -72,18 +99,13 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                  'Permisos de ubicación denegados permanentemente. Actívalos en Ajustes.'),
-            ),
+                content: Text('Permisos denegados permanentemente.')),
           );
         }
         return;
       }
-
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
+          desiredAccuracy: LocationAccuracy.high);
       setState(() {
         _latitud = position.latitude;
         _longitud = position.longitude;
@@ -121,8 +143,8 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
       if (picked == null) return;
       final bytes = await picked.readAsBytes();
       final extension = picked.name.split('.').last.toLowerCase();
-      setState(() => _fotos
-          .add((bytes: bytes, extension: extension, nombre: picked.name)));
+      setState(() =>
+          _fotosNuevas.add((bytes: bytes, extension: extension, nombre: picked.name)));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -164,6 +186,7 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
   }
 
   Future<void> _guardar() async {
+    if (_entry == null) return;
     if (!_formKey.currentState!.validate()) return;
     if (_latitud == null || _longitud == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -174,24 +197,30 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
 
     setState(() => _guardando = true);
 
-    final fotosParaSubir =
-        _fotos.map((f) => (bytes: f.bytes, extension: f.extension)).toList();
+    final entradaActualizada = _entry!.copyWith(
+      titulo: _titleController.text.trim(),
+      nota: _noteController.text.trim(),
+      latitud: _latitud,
+      longitud: _longitud,
+      fechaVisita: _fechaVisita,
+    );
 
-    final exito =
-        await ref.read(entradasNotifierProvider.notifier).crearEntrada(
-              titulo: _titleController.text.trim(),
-              nota: _noteController.text.trim(),
-              latitud: _latitud!,
-              longitud: _longitud!,
-              fechaVisita: _fechaVisita,
-              fotos: fotosParaSubir,
-            );
+    final fotosNuevasSinNombre =
+        _fotosNuevas.map((f) => (bytes: f.bytes, extension: f.extension)).toList();
+
+    final exito = await ref
+        .read(entradasNotifierProvider.notifier)
+        .editarEntradaCompleta(
+          entrada: entradaActualizada,
+          fotosAEliminar: _fotosAEliminar,
+          fotosNuevas: fotosNuevasSinNombre,
+        );
 
     if (mounted) {
       setState(() => _guardando = false);
       if (exito) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lugar guardado exitosamente')),
+          const SnackBar(content: Text('Lugar actualizado correctamente')),
         );
         context.pop();
       } else {
@@ -206,9 +235,20 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    if (_entry == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Editar lugar')),
+        body: const Center(child: Text('Entrada no encontrada')),
+      );
+    }
+
+    final fotosVisibles = _entry!.fotos
+        .where((f) => !_fotosAEliminar.any((d) => d.id == f.id))
+        .toList();
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nuevo lugar'),
+        title: const Text('Editar lugar'),
         actions: [
           TextButton(
             onPressed: _guardando ? null : _guardar,
@@ -226,13 +266,13 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            const _StepLabel(number: '1', label: 'Nombre del lugar'),
+            _StepLabel(number: '1', label: 'Nombre del lugar'),
             const SizedBox(height: 10),
             TextFormField(
               controller: _titleController,
               textCapitalization: TextCapitalization.words,
               decoration: const InputDecoration(
-                labelText: 'Ej: Coliseo Romano, Playa del Carmen...',
+                labelText: 'Nombre del lugar',
                 prefixIcon: Icon(Icons.place_outlined),
               ),
               validator: (v) => (v == null || v.trim().isEmpty)
@@ -240,7 +280,7 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                   : null,
             ),
             const SizedBox(height: 28),
-            const _StepLabel(number: '2', label: 'Fecha de visita'),
+            _StepLabel(number: '2', label: 'Fecha de visita'),
             const SizedBox(height: 10),
             GestureDetector(
               onTap: _pickDate,
@@ -268,7 +308,7 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
               ),
             ),
             const SizedBox(height: 28),
-            const _StepLabel(number: '3', label: 'Fotografías'),
+            _StepLabel(number: '3', label: 'Fotografías'),
             const SizedBox(height: 10),
             SizedBox(
               height: 110,
@@ -283,7 +323,8 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: theme.colorScheme.primary),
+                        border:
+                            Border.all(color: theme.colorScheme.primary),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -292,14 +333,61 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                               color: theme.colorScheme.primary),
                           const SizedBox(height: 4),
                           Text('Agregar',
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: theme.colorScheme.primary)),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.primary)),
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  ..._fotos.asMap().entries.map((e) {
+                  ...fotosVisibles.map((foto) => Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.network(foto.url,
+                                  width: 100, height: 100, fit: BoxFit.cover),
+                            ),
+                            if (foto.esPrincipal)
+                              Positioned(
+                                bottom: 4,
+                                left: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text('Portada',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700)),
+                                ),
+                              ),
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: GestureDetector(
+                                onTap: () => setState(
+                                    () => _fotosAEliminar.add(foto)),
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.close,
+                                      size: 14, color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                  ..._fotosNuevas.asMap().entries.map((e) {
                     final i = e.key;
                     final foto = e.value;
                     return Padding(
@@ -311,29 +399,12 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                             child: Image.memory(foto.bytes,
                                 width: 100, height: 100, fit: BoxFit.cover),
                           ),
-                          if (i == 0)
-                            Positioned(
-                              bottom: 4,
-                              left: 4,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Text('Portada',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700)),
-                              ),
-                            ),
                           Positioned(
                             top: 4,
                             right: 4,
                             child: GestureDetector(
-                              onTap: () => setState(() => _fotos.removeAt(i)),
+                              onTap: () =>
+                                  setState(() => _fotosNuevas.removeAt(i)),
                               child: Container(
                                 padding: const EdgeInsets.all(3),
                                 decoration: const BoxDecoration(
@@ -353,7 +424,7 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
               ),
             ),
             const SizedBox(height: 28),
-            const _StepLabel(number: '4', label: 'Nota personal'),
+            _StepLabel(number: '4', label: 'Nota personal'),
             const SizedBox(height: 10),
             TextFormField(
               controller: _noteController,
@@ -368,7 +439,7 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
               ),
             ),
             const SizedBox(height: 28),
-            const _StepLabel(number: '5', label: 'Ubicación'),
+            _StepLabel(number: '5', label: 'Ubicación'),
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(16),
@@ -394,8 +465,8 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                                 SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2),
                                 ),
                                 SizedBox(width: 10),
                                 Text('Obteniendo ubicación...'),
@@ -415,13 +486,11 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          '${_latitud!.toStringAsFixed(5)}°',
-                                          style: theme.textTheme.labelMedium,
-                                        ),
+                                            '${_latitud!.toStringAsFixed(5)}°',
+                                            style: theme.textTheme.labelMedium),
                                         Text(
-                                          '${_longitud!.toStringAsFixed(5)}°',
-                                          style: theme.textTheme.labelMedium,
-                                        ),
+                                            '${_longitud!.toStringAsFixed(5)}°',
+                                            style: theme.textTheme.labelMedium),
                                       ],
                                     ),
                                     const SizedBox(width: 10),
@@ -429,12 +498,10 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                                         color: Colors.green, size: 18),
                                   ],
                                 )
-                              : Text(
-                                  'Sin ubicación seleccionada',
+                              : Text('Sin ubicación seleccionada',
                                   style: theme.textTheme.bodySmall?.copyWith(
                                       color:
-                                          theme.colorScheme.onSurfaceVariant),
-                                ),
+                                          theme.colorScheme.onSurfaceVariant)),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -444,7 +511,8 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.my_location, size: 18),
                           label: const Text('Usar GPS'),
-                          onPressed: _detectandoGPS ? null : _detectarUbicacion,
+                          onPressed:
+                              _detectandoGPS ? null : _detectarUbicacion,
                           style: OutlinedButton.styleFrom(
                               minimumSize: const Size(0, 46)),
                         ),
@@ -473,7 +541,7 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Guardar lugar'),
+                  : const Text('Guardar cambios'),
             ),
             const SizedBox(height: 24),
           ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../main.dart';
@@ -78,7 +79,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       );
 
       if (mounted) {
-        // mensaje de cambio realizado
         await showDialog(
           context: context,
           barrierDismissible: false,
@@ -93,7 +93,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.pop(context);
+                  context.pop();
                 },
                 child: const Text('Aceptar'),
               ),
@@ -280,7 +280,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
               const SizedBox(height: 16),
 
-              // notita xd
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
