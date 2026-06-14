@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -27,6 +28,7 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
   DateTime _fechaVisita = DateTime.now();
   double? _latitud;
   double? _longitud;
+  String? _nombreLugar;
   bool _detectandoGPS = false;
   bool _guardando = false;
 
@@ -88,6 +90,7 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
         _latitud = position.latitude;
         _longitud = position.longitude;
       });
+      await _resolverNombreLugar(position.latitude, position.longitude);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -99,13 +102,32 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
     }
   }
 
+  Future<void> _resolverNombreLugar(double lat, double lng) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(lat, lng);
+      if (placemarks.isNotEmpty && mounted) {
+        final p = placemarks.first;
+        final partes = <String>[
+          if (p.locality?.isNotEmpty == true) p.locality!,
+          if (p.administrativeArea?.isNotEmpty == true) p.administrativeArea!,
+          if (p.country?.isNotEmpty == true) p.country!,
+        ];
+        setState(() => _nombreLugar = partes.isNotEmpty ? partes.join(', ') : null);
+      }
+    } catch (_) {
+      // geocoding no disponible, se muestran solo coordenadas
+    }
+  }
+
   Future<void> _abrirSelectorMapa() async {
     final result = await showLocationPicker(context);
     if (result != null && mounted) {
       setState(() {
         _latitud = result['lat'];
         _longitud = result['lng'];
+        _nombreLugar = null;
       });
+      await _resolverNombreLugar(result['lat'] as double, result['lng'] as double);
     }
   }
 
@@ -409,24 +431,37 @@ class _NewEntryScreenState extends ConsumerState<NewEntryScreen> {
                                         color: theme.colorScheme.primary,
                                         size: 20),
                                     const SizedBox(width: 6),
-                                    Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${_latitud!.toStringAsFixed(5)}°',
-                                          style: theme.textTheme.labelMedium,
-                                        ),
-                                        Text(
-                                          '${_longitud!.toStringAsFixed(5)}°',
-                                          style: theme.textTheme.labelMedium,
-                                        ),
-                                      ],
+                                    Expanded(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (_nombreLugar != null)
+                                            Text(
+                                              _nombreLugar!,
+                                              style: theme.textTheme.labelMedium
+                                                  ?.copyWith(
+                                                      color: theme.colorScheme
+                                                          .primary,
+                                                      fontWeight:
+                                                          FontWeight.w700),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          Text(
+                                            '${_latitud!.toStringAsFixed(5)}°, ${_longitud!.toStringAsFixed(5)}°',
+                                            style: theme.textTheme.labelSmall
+                                                ?.copyWith(
+                                                    color: theme.colorScheme
+                                                        .onSurfaceVariant),
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                    const SizedBox(width: 10),
-                                    const Icon(Icons.check_circle,
-                                        color: Colors.green, size: 18),
+                                    const SizedBox(width: 8),
+                                    Icon(Icons.check_circle,
+                                        color: theme.colorScheme.primary,
+                                        size: 18),
                                   ],
                                 )
                               : Text(

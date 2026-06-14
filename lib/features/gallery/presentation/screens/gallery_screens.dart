@@ -140,20 +140,27 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           // ── Lista / Cuadrícula ──────────────────────────────────
           Expanded(
             child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : filtered.isEmpty
-                    ? _EmptyState(query: _query)
-                    : _isGridView
-                        ? _GridContent(entries: filtered)
-                        : ListView.separated(
-                            padding:
-                                const EdgeInsets.fromLTRB(16, 4, 16, 20),
-                            itemCount: filtered.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (_, i) =>
-                                _EntryCard(entry: filtered[i]),
-                          ),
+                ? _SkeletonList()
+                : state.errorMessage != null
+                    ? _ErrorState(
+                        message: state.errorMessage!,
+                        onRetry: () => ref
+                            .read(entradasNotifierProvider.notifier)
+                            .cargarEntradas(),
+                      )
+                    : filtered.isEmpty
+                        ? _EmptyState(query: _query)
+                        : _isGridView
+                            ? _GridContent(entries: filtered)
+                            : ListView.separated(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (_, i) =>
+                                    _EntryCard(entry: filtered[i]),
+                              ),
           ),
         ],
       ),
@@ -407,6 +414,133 @@ class _EntryCard extends StatelessWidget {
                   ],
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Skeleton loader ───────────────────────────────────────────────────
+class _SkeletonList extends StatefulWidget {
+  @override
+  State<_SkeletonList> createState() => _SkeletonListState();
+}
+
+class _SkeletonListState extends State<_SkeletonList>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (_, __) {
+        final base = theme.colorScheme.surfaceContainerLow;
+        final highlight = theme.colorScheme.surfaceContainerHighest;
+        final color = Color.lerp(base, highlight, _animation.value)!;
+
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+          itemCount: 5,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (_, __) => Container(
+            height: 220,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: highlight,
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                          height: 14,
+                          width: 160,
+                          decoration: BoxDecoration(
+                              color: highlight,
+                              borderRadius: BorderRadius.circular(6))),
+                      const SizedBox(height: 8),
+                      Container(
+                          height: 10,
+                          width: 100,
+                          decoration: BoxDecoration(
+                              color: highlight,
+                              borderRadius: BorderRadius.circular(6))),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Error state ───────────────────────────────────────────────────────
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorState({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.cloud_off_outlined,
+                size: 64, color: theme.colorScheme.error.withValues(alpha: 0.7)),
+            const SizedBox(height: 16),
+            Text('No se pudo cargar', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Reintentar'),
             ),
           ],
         ),

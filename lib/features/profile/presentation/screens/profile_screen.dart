@@ -5,54 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../auth/application/auth_provider.dart';
 import '../../../map/application/entradas_provider.dart';
-import '../../../../main.dart';
+import '../../application/profile_provider.dart';
 
-class ProfileScreen extends ConsumerStatefulWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
-
-  @override
-  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  String _nombre = '';
-  String? _avatarUrl;
-  bool _loadingProfile = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-  }
-
-  Future<void> _navigateToStats() async {
-    await context.push(AppRoutes.profileStats);
-  }
-
-  Future<void> _loadProfile() async {
-    setState(() => _loadingProfile = true);
-    try {
-      final user = supabase.auth.currentUser;
-      if (user == null) return;
-
-      final data = await supabase
-          .from('usuarios')
-          .select()
-          .eq('id', user.id)
-          .maybeSingle();
-
-      if (data != null && mounted) {
-        setState(() {
-          _nombre = data['nombre'] as String? ?? '';
-          _avatarUrl = data['avatar_url'] as String?;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error cargando perfil: $e');
-    } finally {
-      if (mounted) setState(() => _loadingProfile = false);
-    }
-  }
 
   String _iniciales(String nombre) {
     final partes = nombre.trim().split(' ');
@@ -61,16 +17,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return '${partes.first[0]}${partes.last[0]}'.toUpperCase();
   }
 
-  Future<void> _navigateToEdit() async {
-    await context.push(AppRoutes.profileEdit);
-    _loadProfile();
-  }
-
-  Future<void> _navigateToChangePassword() async {
-    await context.push(AppRoutes.profileChangePassword);
-  }
-
-  void _confirmLogout() {
+  void _confirmLogout(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -85,9 +32,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             style: TextButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.error),
             onPressed: () async {
-              // Cerrar diálogo usando su propio context, no el de la pantalla
               Navigator.of(dialogContext).pop();
-              // Esperar un frame antes de hacer signOut
               await Future.delayed(Duration.zero);
               await ref.read(authNotifierProvider.notifier).signOut();
             },
@@ -98,21 +43,50 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  void _showPrivacyInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        icon: const Icon(Icons.lock_outline, size: 36),
+        title: const Text('Privacidad'),
+        content: const Text(
+          'Todas tus entradas son privadas por defecto. Solo tú puedes ver tus lugares, fotos y notas.\n\nNadie más tiene acceso a tu diario de viajes.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final user = ref.watch(currentUserProvider);
     final entradas = ref.watch(entradasProvider);
+    final profile = ref.watch(profileNotifierProvider);
     final email = user?.email ?? '';
+
+    final int totalFotos = entradas.fold(0, (s, e) => s + e.fotos.length);
+    final DateTime? primerViaje = entradas.isEmpty
+        ? null
+        : entradas
+            .map((e) => e.fechaVisita)
+            .reduce((a, b) => a.isBefore(b) ? a : b);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi perfil'),
       ),
-      body: _loadingProfile
+      body: profile.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: _loadProfile,
+              onRefresh: () =>
+                  ref.read(profileNotifierProvider.notifier).cargar(),
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
@@ -126,12 +100,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               radius: 56,
                               backgroundColor:
                                   theme.colorScheme.primaryContainer,
-                              backgroundImage: _avatarUrl != null
-                                  ? NetworkImage(_avatarUrl!)
+                              backgroundImage: profile.avatarUrl != null
+                                  ? NetworkImage(profile.avatarUrl!)
                                   : null,
-                              child: _avatarUrl == null
+                              child: profile.avatarUrl == null
                                   ? Text(
-                                      _iniciales(_nombre),
+                                      _iniciales(profile.nombre),
                                       style: TextStyle(
                                         fontSize: 36,
                                         fontWeight: FontWeight.w700,
@@ -145,7 +119,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               bottom: 0,
                               right: 0,
                               child: GestureDetector(
-                                onTap: _navigateToEdit,
+                                onTap: () async {
+                                  await context.push(AppRoutes.profileEdit);
+                                  ref
+                                      .read(profileNotifierProvider.notifier)
+                                      .cargar();
+                                },
                                 child: Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
@@ -165,7 +144,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          _nombre.isNotEmpty ? _nombre : 'Sin nombre',
+                          profile.nombre.isNotEmpty
+                              ? profile.nombre
+                              : 'Sin nombre',
                           style: theme.textTheme.headlineSmall,
                         ),
                         const SizedBox(height: 4),
@@ -178,7 +159,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         OutlinedButton.icon(
                           icon: const Icon(Icons.edit_outlined, size: 16),
                           label: const Text('Editar perfil'),
-                          onPressed: _navigateToEdit,
+                          onPressed: () async {
+                            await context.push(AppRoutes.profileEdit);
+                            ref
+                                .read(profileNotifierProvider.notifier)
+                                .cargar();
+                          },
                           style: OutlinedButton.styleFrom(
                             minimumSize: const Size(160, 36),
                             shape: RoundedRectangleBorder(
@@ -207,22 +193,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: _StatCard(
-                          value:
-                              '${entradas.fold(0, (s, e) => s + e.fotos.length)}',
+                          value: '$totalFotos',
                           label: 'Fotos',
                           icon: Icons.photo,
-                          color: Colors.orange,
+                          color: theme.colorScheme.tertiary,
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: _StatCard(
-                          value: entradas.isEmpty
-                              ? '-'
-                              : '${entradas.last.fechaVisita.year}',
+                          value: primerViaje != null
+                              ? '${primerViaje.year}'
+                              : '-',
                           label: 'Desde',
                           icon: Icons.calendar_today,
-                          color: Colors.green,
+                          color: theme.colorScheme.secondary,
                         ),
                       ),
                     ],
@@ -244,25 +229,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     icon: Icons.bar_chart_rounded,
                     label: 'Mis estadísticas',
                     subtitle: 'Gráficas y resumen de tus viajes',
-                    onTap: _navigateToStats,
+                    onTap: () => context.push(AppRoutes.profileStats),
                   ),
                   _OptionTile(
                     icon: Icons.person_outline,
                     label: 'Editar perfil',
                     subtitle: 'Nombre y foto de perfil',
-                    onTap: _navigateToEdit,
+                    onTap: () async {
+                      await context.push(AppRoutes.profileEdit);
+                      ref.read(profileNotifierProvider.notifier).cargar();
+                    },
                   ),
                   _OptionTile(
                     icon: Icons.lock_outline,
                     label: 'Cambiar contraseña',
                     subtitle: 'Actualiza tu contraseña de acceso',
-                    onTap: _navigateToChangePassword,
+                    onTap: () => context.push(AppRoutes.profileChangePassword),
                   ),
                   _OptionTile(
                     icon: Icons.privacy_tip_outlined,
                     label: 'Privacidad',
-                    subtitle: 'Gestiona la visibilidad de tus entradas',
-                    onTap: () {},
+                    subtitle: 'Tus entradas son privadas por defecto',
+                    onTap: () => _showPrivacyInfo(context),
                   ),
 
                   const SizedBox(height: 20),
@@ -276,7 +264,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     icon: const Icon(Icons.logout),
                     label: const Text('Cerrar sesión'),
-                    onPressed: _confirmLogout,
+                    onPressed: () => _confirmLogout(context, ref),
                   ),
 
                   const SizedBox(height: 24),
@@ -286,8 +274,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 }
-
-// widgets auxs
 
 class _StatCard extends StatelessWidget {
   final String value;

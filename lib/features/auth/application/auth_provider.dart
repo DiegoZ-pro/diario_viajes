@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../../main.dart';
-
 enum AuthStatus { loading, authenticated, unauthenticated }
 
 class AuthState {
@@ -39,15 +37,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _init();
   }
 
+  SupabaseClient get _client => Supabase.instance.client;
+
   void _init() {
-    final session = supabase.auth.currentSession;
+    final session = _client.auth.currentSession;
     if (session != null) {
       state = AuthState.authenticated(session.user);
     } else {
       state = const AuthState.unauthenticated();
     }
 
-    supabase.auth.onAuthStateChange.listen((data) {
+    _client.auth.onAuthStateChange.listen((data) {
       final user = data.session?.user;
       if (user != null) {
         state = AuthState.authenticated(user);
@@ -64,7 +64,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     state = const AuthState.loading();
     try {
-      await supabase.auth.signUp(
+      await _client.auth.signUp(
         email: email,
         password: password,
         data: {'full_name': nombre},
@@ -83,7 +83,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     state = const AuthState.loading();
     try {
-      await supabase.auth.signInWithPassword(
+      await _client.auth.signInWithPassword(
         email: email,
         password: password,
       );
@@ -98,7 +98,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> signInWithGoogle() async {
     state = const AuthState.loading();
     try {
-      await supabase.auth.signInWithOAuth(
+      await _client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: 'io.supabase.traveldiario://login-callback',
       );
@@ -111,7 +111,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> signOut() async {
-    await supabase.auth.signOut();
+    await _client.auth.signOut();
     state = const AuthState.unauthenticated();
   }
 

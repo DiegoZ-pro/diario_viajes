@@ -4,13 +4,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/entrada_viaje_model.dart';
 import '../models/foto_model.dart';
-import '../../../../../../main.dart';
 
 class EntradaViajeRepository {
   final SupabaseClient _client;
 
   EntradaViajeRepository({SupabaseClient? client})
-      : _client = client ?? supabase;
+      : _client = client ?? Supabase.instance.client;
 
   Future<List<EntradaViaje>> obtenerEntradas() async {
     final response = await _client

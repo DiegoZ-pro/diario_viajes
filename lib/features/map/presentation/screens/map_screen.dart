@@ -44,10 +44,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ),
       body: Stack(
         children: [
-          if (state.isLoading)
-            const Center(child: CircularProgressIndicator())
-          else
-            buildMapView(entradas),
+          buildMapView(entradas),
           Positioned(
             bottom: 0,
             left: 0,
@@ -85,16 +82,50 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         Text('Lugares registrados',
                             style: theme.textTheme.titleMedium),
                         const Spacer(),
-                        Text(
-                          '${entradas.length} en el mapa',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant),
-                        ),
+                        if (!state.isLoading)
+                          Text(
+                            '${entradas.length} en el mapa',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant),
+                          ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 10),
-                  if (entradas.isEmpty)
+                  if (state.isLoading)
+                    _MapPanelSkeleton(theme: theme)
+                  else if (state.errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.cloud_off_outlined,
+                              size: 18,
+                              color: theme.colorScheme.error),
+                          const SizedBox(width: 8),
+                          Text(
+                            'No se pudieron cargar los lugares.',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(color: theme.colorScheme.error),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () => ref
+                                .read(entradasNotifierProvider.notifier)
+                                .cargarEntradas(),
+                            style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap),
+                            child: const Text('Reintentar'),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (entradas.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(
                           vertical: 16, horizontal: 20),
@@ -137,6 +168,32 @@ class _MapScreenState extends ConsumerState<MapScreen> {
         },
         icon: const Icon(Icons.add_location_alt_outlined),
         label: const Text('Nuevo lugar'),
+      ),
+    );
+  }
+}
+
+class _MapPanelSkeleton extends StatelessWidget {
+  final ThemeData theme;
+  const _MapPanelSkeleton({required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = theme.colorScheme.surfaceContainerHighest;
+    return SizedBox(
+      height: 90,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: 3,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, __) => Container(
+          width: 190,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       ),
     );
   }
