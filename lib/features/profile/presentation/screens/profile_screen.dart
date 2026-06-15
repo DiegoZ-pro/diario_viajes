@@ -46,7 +46,7 @@ class ProfileScreen extends ConsumerWidget {
   void _showPrivacyInfo(BuildContext context) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         icon: const Icon(Icons.lock_outline, size: 36),
         title: const Text('Privacidad'),
         content: const Text(
@@ -55,7 +55,7 @@ class ProfileScreen extends ConsumerWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Entendido'),
           ),
         ],
